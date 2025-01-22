@@ -3,6 +3,16 @@
     <h1>{{ isLoginMode ? "Log In" : "Register" }}</h1>
     <form @submit.prevent="handleSubmit">
       <div class="form-group">
+        <label for="username">Username</label>
+        <input
+            id="username"
+            v-model="formData.username"
+            placeholder="Enter your username"
+            required
+        />
+      </div>
+
+      <div v-if="!isLoginMode" class="form-group">
         <label for="email">Email</label>
         <input
             type="email"
@@ -54,32 +64,65 @@ export default {
   name: "AuthForm",
   data() {
     return {
-      isLoginMode: true, // Przełącznik między trybem logowania a rejestracji
+      isLoginMode: true,
       formData: {
+        username: "",
         email: "",
         password: "",
-        confirmPassword: "", // Używane tylko podczas rejestracji
+        confirmPassword: "",
       },
     };
   },
+
   methods: {
     toggleMode() {
       this.isLoginMode = !this.isLoginMode;
       this.resetForm();
     },
-    handleSubmit() {
+    async handleSubmit() {
       if (!this.isLoginMode && this.formData.password !== this.formData.confirmPassword) {
         alert("Passwords do not match!");
         return;
       }
 
-      const action = this.isLoginMode ? "Log In" : "Register";
-      console.log(`${action} data:`, this.formData);
-      // Tutaj możesz wywołać API dla logowania/rejestracji
-      alert(`${action} successful!`);
+      const url = this.isLoginMode
+          ? "http://127.0.0.1:8080/authenticate"
+          : "http://127.0.0.1:8080/register";
+
+      try {
+        const response = await this.$axios.post(url, {
+          email: this.formData.email,
+          password: this.formData.password,
+          username: this.formData.username,
+          role: "ROLE_USER"
+        });
+
+        if (this.isLoginMode) {
+          const token = response.data.token;
+          localStorage.setItem("authToken", token);
+          this.$router.push("/");
+          this.$emit('checkLoginStatus');
+          this.$moshaToast('Log In successful!',
+              {
+                showIcon: 'true',
+                type: 'success',
+              })
+        } else {
+          this.$moshaToast('Registration successful! Please log in.',
+              {
+                showIcon: 'true',
+                type: 'success',
+              })
+
+          this.toggleMode();
+        }
+      } catch (error) {
+        console.error("Error:", error);
+      }
     },
     resetForm() {
       this.formData = {
+        username: "",
         email: "",
         password: "",
         confirmPassword: "",

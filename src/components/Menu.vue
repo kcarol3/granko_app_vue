@@ -1,4 +1,5 @@
 <template>
+  <div class="menu">
   <div :class="['left-menu', { collapsed: isCollapsed }]">
     <div style="float: left; font-size: 1.5rem; margin-right: 10px">
       <font-awesome-icon icon="bars" @click="toggleMenu" />
@@ -14,21 +15,27 @@
             class="menu-item"
             @click="onMenuClick(item)"
         >
-          <font-awesome-icon :icon="item.icon" class="icon" />
-          {{ item.label }}
+          <div>
+            <font-awesome-icon :icon="item.icon" class="icon" />
+            {{ item.label }}
+          </div>
         </li>
       </ul>
     </div>
   </div>
+  </div>
 </template>
 
 <script>
+import {jwtDecode} from "jwt-decode";
+
 export default {
   name: "LeftMenu",
   props: {
     title: {
       type: String,
       default: "Menu",
+      role: String
     },
     menuItems: {
       type: Array,
@@ -37,8 +44,16 @@ export default {
   },
   data() {
     return {
+      userRole: null,
       isCollapsed: false, // Kontroluje widoczność menu
     };
+  },
+  created() {
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      const decoded = jwtDecode(token);
+      this.userRole = decoded.role;
+    }
   },
   methods: {
     toggleMenu() {
@@ -55,20 +70,24 @@ export default {
 </script>
 
 <style scoped>
+.menu {
+  height: 100vh;
+}
 .left-menu {
   width: 260px;
-  background-image: linear-gradient(to right, #004547, #0b2201);
+  background-image: linear-gradient(to right, rgba(98, 255, 0, 0.47), #0b2201);
   color: white;
-  height: 100vh;
-  padding: 20px;
+  height: fit-content;
+  padding: 20px 20px 40px;
   box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
   position: relative;
   transition: width 0.3s ease;
   overflow: hidden;
+  border-radius: 0 0 40px 0;
 }
 
 .left-menu.collapsed {
-  width: 50px; /* Szerokość menu po zwinięciu */
+  width: 70px; /* Szerokość menu po zwinięciu */
 }
 
 .toggle-button {

@@ -2,30 +2,52 @@
   <div>
     <div>
       <div class="back-button" @click="goBack()"><font-awesome-icon icon="arrow-left"/> Go back</div>
-      <div style="display: flex; justify-content: space-between;">
+      <div style="margin: auto">
         <div class="user-info">
-          <h1 style="color: #62ff00">Welcome, {{ user.name }}!</h1>
+          <h1 style="color: #62ff00">Welcome, {{ user.username }}!</h1>
           <p>Email: {{ user.email }}</p>
-          <p>Membership Level: {{ user.membership }}</p>
+            <button @click="openModal">Edit User</button>
+
+            <!-- Modal -->
+            <div v-if="isModalOpen" class="modal-overlay">
+                <div class="modal-content">
+                    <h2 style="color: #102b12">Edit User</h2>
+                    <form @submit.prevent="updateUser">
+                        <div class="form-group">
+                            <label for="username">Username:</label>
+                            <input type="text" id="username" v-model="user.username" required />
+                        </div>
+                        <div class="form-group">
+                            <label for="email">Email:</label>
+                            <input type="email" id="email" v-model="user.email" required />
+                        </div>
+                        <div class="modal-actions">
+                            <button type="submit" class="save-button">Save and logout</button>
+                            <button type="button" class="cancel-button" @click="closeModal">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
 
-        <div class="game-execution">
-          <label for="code" style="color: white; font-size: 2rem">Execute Your Game Code</label>
-          <input id="code" v-model="gameCode" placeholder="Enter code here in format XXXX-XXXX-XXXX..." class="code-input">
-          <button @click="executeCode">Run Code</button>
-          <div class="execution-result" :style="errorStyle" v-if="executionResult">
-            <h3>Execution Result:</h3>
-            <p>{{ executionResult }}</p>
-          </div>
-        </div>
+<!--        <div class="game-execution">-->
+<!--          <label for="code" style="color: white; font-size: 2rem">Execute Your Game Code</label>-->
+<!--          <input id="code" v-model="gameCode" placeholder="Enter code here in format XXXX-XXXX-XXXX..." class="code-input">-->
+<!--          <button @click="executeCode">Run Code</button>-->
+<!--          <div class="execution-result" :style="errorStyle" v-if="executionResult">-->
+<!--            <h3>Execution Result:</h3>-->
+<!--            <p>{{ executionResult }}</p>-->
+<!--          </div>-->
+<!--        </div>-->
       </div>
 
       <div class="available-games">
-        <h2>Library</h2>
+        <h2 style="margin: auto">Library</h2>
         <div class="game-list">
-          <div v-for="(game, index) in games" :key="index" class="game-item">
+          <div v-for="(game, index) in this.games" :key="index" class="game-item">
             <h3>{{ game.title }}</h3>
-            <button @click="selectGame(index)">Play</button>
+            <h4>{{ game.subTitle }}</h4>
+              <button @click="selectGame(index)">Play</button>
           </div>
         </div>
       </div>
@@ -34,29 +56,102 @@
 </template>
 
 <script>
+import {jwtDecode} from "jwt-decode";
+
 export default {
   name: "UserGamePage",
 
   data() {
     return {
-      user: {
-        name: "Jane Doe",
-        email: "jane.doe@example.com",
-        membership: "Premium",
-      },
+        isModalOpen: false,
+        user: {
+            username: "",
+            email: "",
+        },
       errorStyle: {},
       games: [
-        { title: "The Knights - New Era", price: "Free" },
-        { title: "Fun in the Sun", price: "$59.99" },
-        { title: "Cyberverse", price: "$19.99" },
-        { title: "Dreamscape", price: "$39.99" },
       ],
       gameCode: "",
       executionResult: "",
     };
   },
 
-  methods: {
+    created() {
+      this.getUser();
+      this.getUserGames()
+    },
+
+    methods: {
+        openModal() {
+            // Otwórz modal
+            this.isModalOpen = true;
+
+        },
+        closeModal() {
+            // Zamknij modal
+            this.isModalOpen = false;
+        },
+        updateUser() {
+            const token = localStorage.getItem("authToken");
+            this.$axios.put("http://localhost:8080/user", {
+                id: this.user.id,
+                username: this.user.username,
+                email: this.user.email,
+            },{
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            })
+                .then(() => {
+                    this.$moshaToast('Success',
+                        {
+                            showIcon: 'true',
+                            type: 'success',
+                        })
+                    this.closeModal();
+                    localStorage.removeItem("authToken");
+                    this.$router.push({ path: "/login" });
+                    this.$emit("checkLoginStatus")
+                })
+                .catch((error) => {
+                    console.error("Error updating user:", error);
+                });
+        },
+      getUser() {
+          if (localStorage.getItem("authToken")) {
+              const token = localStorage.getItem("authToken");
+              if (token) {
+                  const decoded = jwtDecode(token);
+                  this.$axios.get(`http://localhost:8080/user/${decoded.username}`, {
+                      headers: {
+                          Authorization: `Bearer ${token}`
+                      }
+                  }).then((response) => {
+                      this.user = response.data;
+                      console.log(response.data);
+                  }).catch((error) => {
+                      console.error('Error fetching cart data:', error);
+                  });
+              }
+          }
+      },
+        getUserGames() {
+            if (localStorage.getItem("authToken")) {
+                const token = localStorage.getItem("authToken");
+                if (token) {
+                    const decoded = jwtDecode(token);
+                    this.$axios.get(`http://localhost:8080/user/games/${decoded.userId}`, {
+                        headers: {
+                            Authorization: `Bearer ${token}`
+                        }
+                    }).then((response) => {
+                        this.games = response.data;
+                    }).catch((error) => {
+                        console.error('Error fetching cart data:', error);
+                    });
+                }
+            }
+        },
     goBack(){
       this.$router.back();
     },
@@ -93,7 +188,8 @@ export default {
   border-radius: 1.5rem;
   box-shadow: 0 8px 12px rgba(0, 0, 0, 0.9);
   padding: 1rem;
-  margin-bottom: 2rem;
+  margin: auto;
+
 }
 
 .game-execution {
@@ -127,7 +223,8 @@ export default {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
-  width: 48%
+  width: 48%;
+    margin: auto;
 }
 
 .game-item {
@@ -166,5 +263,78 @@ h2 {
 }
 .back-button:hover {
   cursor: pointer;
+}
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    width: 400px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+}
+
+input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.edit-button,
+.save-button,
+.cancel-button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.edit-button {
+    background-color: #007bff;
+    color: white;
+}
+
+.save-button {
+    background-color: #28a745;
+    color: white;
+}
+
+.cancel-button {
+    background-color: #dc3545;
+    color: white;
+}
+
+.save-button:hover,
+.cancel-button:hover,
+.edit-button:hover {
+    opacity: 0.9;
 }
 </style>
